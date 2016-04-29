@@ -1,4 +1,7 @@
 # coding=UTF8
+from __future__ import unicode_literals
+from __future__ import print_function
+
 from ConfigParser import ConfigParser
 import argparse
 import os
@@ -7,15 +10,13 @@ from getpass import getpass
 import syncano
 from syncano.exceptions import SyncanoException
 
+from .project import Project
+
 ACCOUNT_KEY = ''
 
-CONFIG = ConfigParser()
+ACCOUNT_CONFIG = ConfigParser()
 
 COMMANDS = {}
-
-
-def _parse_config():
-    pass
 
 
 def command(func):
@@ -47,10 +48,11 @@ def login(args):
     connection = syncano.connect().connection()
     try:
         ACCOUNT_KEY = connection.authenticate(email=email, password=password)
-        CONFIG.set('syncano', 'account_key', ACCOUNT_KEY)
-        CONFIG.write(args.config)
+        ACCOUNT_CONFIG.set('DEFAULT', 'key', ACCOUNT_KEY)
+        with open(args.config, 'wb') as fp:
+            ACCOUNT_CONFIG.write(fp)
     except SyncanoException as error:
-        print error
+        print(error)
 
 
 @command
@@ -58,12 +60,22 @@ def login(args):
           help="Pull only this script from syncano")
 @argument('-c', '--class', action='append', nargs='*', dest='classes',
           help="Pull only this class from syncano")
+@argument('-a', '--all', action='store_true',
+          help="Force push all configuration")
 @argument('instance', help="Destination instance name")
 def push(args):
     """
     Push configuration changes to syncano.
     """
-    print "push", args
+    print("push", args)
+
+
+@command
+@argument('instance', help="Source instance name")
+@argument('script', help="script label or script name")
+def run(args):
+    """Execute script on syncano."""
+    pass
 
 
 @command
@@ -75,25 +87,32 @@ def push(args):
 def pull(args):
     """
     Pull configuration from syncano and store it in current directory.
-    Generates syncano.yml configuration file, and places scripts in scripts
+    Updates syncano.yml configuration file, and places scripts in scripts
     directory.
     """
-    print "pull", args
-
-
-@command
-def help(args):
-    args.parser
+    con = syncano.connect(api_key=args.key)
+    instance = con.instances.get(name=args.instance)
+    Project.pull_from_instance(instance).write(args.file)
 
 
 def main():
+    ACCOUNT_CONFIG_PATH = os.path.join(os.path.expanduser('~'), '.syncano')
+
     parser = argparse.ArgumentParser(
-        description='Syncano synchronization tool.')
-    CONFIG_PATH = os.path.join(os.path.expanduser('~'), '.syncano')
-    parser.add_argument('--config', default=CONFIG_PATH)
-    parser.add_argument('--key', default=os.environ.get('SYNCANO_API_KEY', ''))
-    subparsers = parser.add_subparsers(title='subcommands',
-                                       description='valid subcommands')
+        description='Syncano synchronization tool.'
+    )
+    parser.add_argument('--file', '-f', default='syncano.yml',
+                        help='Instance configuraion file.')
+    parser.add_argument('--config', default=ACCOUNT_CONFIG_PATH,
+                        help='Account configuration file.')
+    parser.add_argument('--key', default=os.environ.get('SYNCANO_API_KEY', ''),
+                        help='override ACCOUNT_KEY used for authentication.')
+
+    subparsers = parser.add_subparsers(
+        title='subcommands',
+        description='valid subcommands'
+    )
+
     for fname, func in COMMANDS.iteritems():
         subparser = subparsers.add_parser(fname, description=func.__doc__)
         for args, kwargs in getattr(func, 'arguments', []):
@@ -101,7 +120,9 @@ def main():
         subparser.set_defaults(func=func)
     namespace = parser.parse_args()
 
-    CONFIG.read(namespace.config)
+    read = ACCOUNT_CONFIG.read(namespace.config)
+    if read and not namespace.key:
+        namespace.key = ACCOUNT_CONFIG.get('DEFAULT', 'key')
 
     namespace.func(namespace)
 
