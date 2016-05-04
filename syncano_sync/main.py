@@ -4,8 +4,10 @@ from __future__ import print_function
 
 from ConfigParser import ConfigParser
 import argparse
-import os
 from getpass import getpass
+import logging
+import os
+import sys
 
 import syncano
 from syncano.exceptions import SyncanoException
@@ -17,6 +19,9 @@ ACCOUNT_KEY = ''
 ACCOUNT_CONFIG = ConfigParser()
 
 COMMANDS = {}
+
+LOG = logging.getLogger()
+CONSOLE_HANDLER = logging.StreamHandler(sys.stderr)
 
 
 def command(func):
@@ -31,6 +36,14 @@ def argument(*args, **kwargs):
         f.arguments.append((args, kwargs))
         return f
     return wrapper
+
+
+def setup_logging():
+    root = logging.getLogger()
+    root.addHandler(CONSOLE_HANDLER)
+    root.setLevel(logging.DEBUG)
+    # disable requests logging
+    logging.getLogger("requests").propagate = False
 
 
 @command
@@ -96,6 +109,7 @@ def pull(args):
 
 
 def main():
+    setup_logging()
     ACCOUNT_CONFIG_PATH = os.path.join(os.path.expanduser('~'), '.syncano')
 
     parser = argparse.ArgumentParser(

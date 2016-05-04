@@ -2,9 +2,12 @@
 from __future__ import unicode_literals
 from __future__ import print_function
 
+import logging
 import re
 import os
 
+
+LOG = logging.getLogger(__name__)
 
 RUNTIME_EXTENSION = (
     (re.compile('golang'), '.go'),
@@ -32,6 +35,7 @@ def pull_scripts(instance, include):
     """
     seen_names = {}
     if not os.path.exists('scripts'):
+        LOG.debug("Creating scripts directory")
         os.makedirs('scripts')
 
     pulled = []
@@ -41,12 +45,19 @@ def pull_scripts(instance, include):
             continue
 
         ext = get_runtime_extension(script.runtime_name)
-        filename = re.sub(r'[\s/\\]', '_', script.label) + ext
+        filename = re.sub(r'[\s/\\]', '_', script.label)
+
+        if not filename.endswith(ext):
+            filename += ext
+
+        if filename != script.label:
+            LOG.warn('Saving script "{0}" as "{1}"'.format(script.label,
+                                                           filename))
 
         if filename in seen_names:
-            print("Script {0.label}({0.id}) label clashes with"
-                  "script {1.label}({1.id}). Skipping."
-                  .format(script, seen_names[filename]))
+            LOG.warn("Script {0.label}({0.id}) label clashes with"
+                     "script {1.label}({1.id}). Skipping."
+                     .format(script, seen_names[filename]))
             continue
 
         path = os.path.join('scripts', filename)
@@ -54,9 +65,18 @@ def pull_scripts(instance, include):
         with open(path, 'wb') as script_file:
             script_file.write(script.source)
 
-        pulled.append({
+        script_info = {
             'label': script.label.encode('utf8'),
             'script': path.encode('utf8'),
             'runtime': script.runtime_name.encode('utf8')
-        })
+        }
+
+        if script.config:
+            script_info['config'] = script.config
+
+        pulled.append(script_info)
     return pulled
+
+
+def push_scripts(instance, scripts):
+    pass
