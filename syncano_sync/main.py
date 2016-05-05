@@ -1,13 +1,12 @@
 # coding=UTF8
-from __future__ import unicode_literals
-from __future__ import print_function
+from __future__ import print_function, unicode_literals
 
-from ConfigParser import ConfigParser
 import argparse
-from getpass import getpass
 import logging
 import os
 import sys
+from ConfigParser import ConfigParser
+from getpass import getpass
 
 import syncano
 from syncano.exceptions import SyncanoException
@@ -76,11 +75,13 @@ def login(args):
 @argument('-a', '--all', action='store_true',
           help="Force push all configuration")
 @argument('instance', help="Destination instance name")
-def push(args):
+def push(context):
     """
     Push configuration changes to syncano.
     """
-    print("push", args)
+    con = syncano.connect(api_key=context.key)
+    instance = con.instances.get(name=context.instance)
+    context.project.push_to_instance(instance)
 
 
 @command
@@ -96,16 +97,22 @@ def run(args):
           help="Pull only this script from syncano")
 @argument('-c', '--class', action='append', nargs='*', dest='classes',
           help="Pull only this class from syncano")
+@argument('-a', '--all', action='store_true',
+          help="Pull all classes/scripts from syncano")
 @argument('instance', help="Source instance name")
-def pull(args):
+def pull(context):
     """
     Pull configuration from syncano and store it in current directory.
     Updates syncano.yml configuration file, and places scripts in scripts
     directory.
+    When syncano.yml file exists. It will pull only objects defined in
+    configuration file. If you want to pull all objects from syncano use
+    -a/--all flag.
     """
-    con = syncano.connect(api_key=args.key)
-    instance = con.instances.get(name=args.instance)
-    Project.pull_from_instance(instance).write(args.file)
+    con = syncano.connect(api_key=context.key)
+    instance = con.instances.get(name=context.instance)
+    context.project.update_from_instance(instance)
+    context.project.write(context.file)
 
 
 def main():
@@ -133,6 +140,8 @@ def main():
             subparser.add_argument(*args, **kwargs)
         subparser.set_defaults(func=func)
     namespace = parser.parse_args()
+
+    namespace.project = Project.from_config(namespace.file)
 
     read = ACCOUNT_CONFIG.read(namespace.config)
     if read and not namespace.key:
