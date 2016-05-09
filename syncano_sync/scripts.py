@@ -24,8 +24,18 @@ ALLOWED_RUNTIMES = {
     'swift': '.swift',
 }
 
-
-Script.runtime_name = fields.StringField()
+# FIXME: Waiting for python library runtime_name field fix.
+runtime_field = Script._meta.get_field('runtime_name')
+if isinstance(runtime_field, fields.ChoiceField):
+    field = fields.StringField(
+        name=runtime_field.name,
+        label=runtime_field.label,
+        model=runtime_field.model
+    )
+    setattr(Script, 'runtime_name', field)
+    Script._meta.field_names.remove(runtime_field.name)
+    Script._meta.fields.remove(runtime_field)
+    Script._meta.add_field(field)
 
 
 def get_runtime_extension(runtime):
