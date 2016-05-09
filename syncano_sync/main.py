@@ -68,9 +68,9 @@ def login(args):
 
 
 @command
-@argument('-s', '--script', action='append', nargs='*', dest='scripts',
+@argument('-s', '--script', action='append', dest='scripts',
           help="Pull only this script from syncano")
-@argument('-c', '--class', action='append', nargs='*', dest='classes',
+@argument('-c', '--class', action='append', dest='classes',
           help="Pull only this class from syncano")
 @argument('-a', '--all', action='store_true',
           help="Force push all configuration")
@@ -81,10 +81,10 @@ def push(context):
     """
     con = syncano.connect(api_key=context.key)
     instance = con.instances.get(name=context.instance)
-    context.project.push_to_instance(instance)
+    context.project.push_to_instance(instance, classes=context.classes,
+                                     scripts=context.scripts, all=context.all)
 
 
-@command
 @argument('instance', help="Source instance name")
 @argument('script', help="script label or script name")
 def run(args):
@@ -93,9 +93,9 @@ def run(args):
 
 
 @command
-@argument('-s', '--script', action='append', nargs='*', dest='scripts',
+@argument('-s', '--script', action='append', dest='scripts',
           help="Pull only this script from syncano")
-@argument('-c', '--class', action='append', nargs='*', dest='classes',
+@argument('-c', '--class', action='append', dest='classes',
           help="Pull only this class from syncano")
 @argument('-a', '--all', action='store_true',
           help="Pull all classes/scripts from syncano")
@@ -111,7 +111,8 @@ def pull(context):
     """
     con = syncano.connect(api_key=context.key)
     instance = con.instances.get(name=context.instance)
-    context.project.update_from_instance(instance)
+    context.project.update_from_instance(instance, context.all,
+                                         context.classes, context.scripts)
     context.project.write(context.file)
 
 
@@ -147,7 +148,10 @@ def main():
     if read and not namespace.key:
         namespace.key = ACCOUNT_CONFIG.get('DEFAULT', 'key')
 
-    namespace.func(namespace)
+    try:
+        namespace.func(namespace)
+    except ValueError as e:
+        LOG.error(e.message)
 
 if __name__ == "__main__":
     main()

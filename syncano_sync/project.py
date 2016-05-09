@@ -1,4 +1,6 @@
 # coding=UTF8
+from __future__ import print_function, unicode_literals
+
 import json
 import os
 import time
@@ -18,9 +20,12 @@ class Project(object):
 
     @classmethod
     def from_config(cls, config):
-        with open(config, 'rb') as fp:
-            cfg = yaml.safe_load(fp)
-        cfg['timestamp'] = os.path.getmtime(config)
+        try:
+            with open(config, 'rb') as fp:
+                cfg = yaml.safe_load(fp)
+            cfg['timestamp'] = os.path.getmtime(config)
+        except IOError:
+            cfg = {}
         project = cls(**cfg)
         project.validate()
         return project
@@ -39,36 +44,40 @@ class Project(object):
                 'scripts': self.scripts
             }, fp, indent=2)
 
-    def update_from_instance(self, instance):
+    def update_from_instance(self, instance, all=False, classes=None,
+                             scripts=None):
         """Updates project data from instances"""
-        self.classes = pull_classes(instance, self.classes.keys())
-        self.scripts = pull_scripts(instance,
-                                    set(s['label'] for s in self.scripts))
-
-    @classmethod
-    def pull_from_instance(cls, instance, scripts=None, classes=None):
         LOG.info("Pulling instance data from syncano")
-        classes = pull_classes(instance, classes or [])
-        scripts = pull_scripts(instance, scripts or [])
+        classes = classes or self.classes.keys()
+        scripts = scripts or set(s['label'] for s in self.scripts)
+        if all:
+            classes = None
+            scripts = None
+        self.classes = pull_classes(instance, classes)
+        self.scripts = pull_scripts(instance, scripts)
         LOG.info("Finished pulling instance data from syncano")
-        return cls(classes, scripts)
 
-    def push_to_instance(self, instance, scripts=None, classes=None):
+    def push_to_instance(self, instance, all=False, classes=None,
+                         scripts=None):
         try:
             last_sync = os.path.getmtime('.sync')
         except OSError:
             with open('.sync', 'wb'):  # touch file
                 pass
             last_sync = 0
-        scripts = []
-        for script in self.scripts:
-            if os.path.getmtime(script['script']) > last_sync:
-                scripts.append(script)
+        scripts = scripts or self.scripts
+        scripts = [s for s in scripts
+                   if all or os.path.getmtime(s['script']) > last_sync]
 
         if scripts:
             push_scripts(instance, scripts)
+
+        sync_classes = self.classes
+        if classes and not all:
+            sync_classes = {c: self.classes[c] for c in classes}
+
         if self.timestamp > last_sync:
-            push_classes(instance, self.classes)
+            push_classes(instance, sync_classes)
         elif not scripts:
             LOG.info('Nothing to sync.')
         now = time.time()
