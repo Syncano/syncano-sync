@@ -4,11 +4,15 @@ from __future__ import print_function, unicode_literals
 import re
 
 from . import LOG, mute_log
+from syncano.models.classes import Class
 
 ALLOWED_TYPES = set(("array", "boolean", "datetime", "file", "float",
                      "integer", "object", "reference", "string", "text"))
 
 ALLOWED_PERMISIONS = ('none', 'read', 'create_objects')
+
+# FIXME: We don't require it on backend so, we should not require it in library
+Class._meta.get_field('schema').required = False
 
 
 def field_schema_to_str(schema):
@@ -83,6 +87,7 @@ def schema_str_to_field(schema_str):
 
 
 def pull_classes(instance, include, update_dict=None):
+    out = {}
     if update_dict is not None:
         out = update_dict
     for cls in instance.classes.all():
