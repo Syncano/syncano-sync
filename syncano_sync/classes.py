@@ -6,9 +6,9 @@ import re
 from . import LOG, mute_log
 from syncano.models.classes import Class
 
-ALLOWED_TYPES = set(("array", "boolean", "datetime", "file", "float",
-                     "geopoint", "integer", "object", "reference", "relation",
-                     "string", "text"))
+ALLOWED_TYPES = {"array", "boolean", "datetime", "file", "float", "geopoint",
+                 "integer", "object", "reference", "relation", "string",
+                 "text"}
 
 ALLOWED_PERMISIONS = ('none', 'read', 'create_objects')
 
