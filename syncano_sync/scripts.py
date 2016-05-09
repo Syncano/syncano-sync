@@ -53,6 +53,7 @@ def pull_scripts(instance, include):
     file names. All whitespaces, slashes and backslashes are replaced with '_'.
     """
     seen_names = {}
+    seen_labels = set()
     if not os.path.exists('scripts'):
         LOG.debug("Creating scripts directory")
         os.makedirs('scripts')
@@ -63,31 +64,38 @@ def pull_scripts(instance, include):
         if include and script.label not in include:
             continue
 
+        if script.label in seen_labels:
+            raise ValueError('There is more than 1 script with label {0.label}'
+                             .format(script))
+        seen_labels.add(script.label)
+
         ext = get_runtime_extension(script.runtime_name)
         filename = re.sub(r'[\s/\\]', '_', script.label)
 
         if not filename.endswith(ext):
             filename += ext
 
-        if filename != script.label:
-            LOG.warn('Saving script "{0}" as "{1}"'.format(script.label,
-                                                           filename))
-
         if filename in seen_names:
             LOG.warn("Script {0.label}({0.id}) label clashes with"
                      "script {1.label}({1.id}). Skipping."
                      .format(script, seen_names[filename]))
             continue
+        seen_names[filename] = script
+
+        if filename != script.label:
+            LOG.warn('Saving script "{0}" as "{1}"'.format(script.label,
+                                                           filename))
 
         path = os.path.join('scripts', filename)
 
         with open(path, 'wb') as script_file:
             script_file.write(script.source)
-
+        #  FIXME: remove sub when validators in python library for runtime name
+        #         are fixed
         script_info = {
-            'label': script.label.encode('utf8'),
-            'script': path.encode('utf8'),
-            'runtime': script.runtime_name.encode('utf8')
+            'label': script.label,
+            'script': path,
+            'runtime': script.runtime_name
         }
 
         if script.config:
@@ -129,7 +137,6 @@ def push_scripts(instance, scripts):
         with open(s['script'], 'rb') as source:
             remote_script.source = source.read()
 
-        # FIXME: Waiting for python library fix.
         config = s.get('config', {})
         remote_script.config.update(config)
 
