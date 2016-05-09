@@ -177,10 +177,6 @@ def validate_script(script):
                 )
                 break
 
-    if runtime not in ALLOWED_RUNTIMES:
-        raise ValueError('Runtime "{runtime}" defined for script "{label}"'
-                         'is not supported'.format(**script))
-
 
 def validate_scripts(scripts):
     for s in scripts:
