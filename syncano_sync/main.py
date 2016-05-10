@@ -69,9 +69,9 @@ def login(args):
 
 @command
 @argument('-s', '--script', action='append', dest='scripts',
-          help="Pull only this script from syncano")
+          help="Push only this script from syncano")
 @argument('-c', '--class', action='append', dest='classes',
-          help="Pull only this class from syncano")
+          help="Push only this class from syncano")
 @argument('-a', '--all', action='store_true',
           help="Force push all configuration")
 @argument('instance', help="Destination instance name")
