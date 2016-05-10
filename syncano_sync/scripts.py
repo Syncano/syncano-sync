@@ -10,7 +10,6 @@ from syncano.models.incentives import Script
 
 from . import LOG, mute_log
 
-
 ALLOWED_RUNTIMES = {
     'golang': '.go',
     'nodejs': '.js',
